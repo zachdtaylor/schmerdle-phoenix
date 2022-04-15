@@ -26,7 +26,8 @@ config :schmerdle_phoenix, SchmerdlePhoenixWeb.Endpoint,
   secret_key_base: "3nvpbzG+GBsWnQf0kTeDfoRjudPLo6NprpF85WrZQcEJnkM4kqy0QObFITDo/q7i",
   watchers: [
     # Start the esbuild watcher by calling Esbuild.install_and_run(:default, args)
-    esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]}
+    esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:default, ~w(--watch)]}
   ]
 
 # ## SSL Support
