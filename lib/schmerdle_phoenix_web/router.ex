@@ -17,7 +17,7 @@ defmodule SchmerdlePhoenixWeb.Router do
   scope "/", SchmerdlePhoenixWeb do
     pipe_through :browser
 
-    get "/", PageController, :index
+    live "/", GameLive
   end
 
   # Other scopes may use custom stacks.
