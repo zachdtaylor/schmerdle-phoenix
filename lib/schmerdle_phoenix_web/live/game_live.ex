@@ -7,7 +7,7 @@ defmodule SchmerdlePhoenixWeb.GameLive do
 
   def render(assigns) do
     ~H"""
-    <div class="h-[calc(100vh-10rem)] flex flex-col justify-between">
+    <div phx-window-keyup="keyboard_click" class="h-[calc(100vh-10rem)] flex flex-col justify-between">
       <div id="guesses" class="flex justify-center">
         <div class="mb-8">
           <%= for row_index <- 1..@allowed_guesses do %>
@@ -21,6 +21,20 @@ defmodule SchmerdlePhoenixWeb.GameLive do
           <% end %>
         </div>
       </div>
+      <%= if @game.game_status == :lose do %>
+      <div>
+        <p class="text-center">Oof 😬</p>
+        <p class="text-center">
+          The word was
+          <span class="text-green-600"><%= @game.solution %></span>
+        </p>
+      </div>
+      <% end %>
+      <%= if assigns[:error] do %>
+      <div>
+        <p class="text-center pb-4"><%= @error %></p>
+      </div>
+      <% end %>
       <div id="keyboard" class="flex justify-center">
         <div class="flex-grow max-w-2xl">
           <%= for row <- @keyboard_rows do %>
@@ -42,7 +56,7 @@ defmodule SchmerdlePhoenixWeb.GameLive do
     keyboard_rows = [
       ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
       ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
-      ["enter", "z", "x", "c", "v", "b", "n", "m", "back"]
+      ["Enter", "z", "x", "c", "v", "b", "n", "m", "Backspace"]
     ]
 
     {:ok,
@@ -53,18 +67,26 @@ defmodule SchmerdlePhoenixWeb.GameLive do
      |> assign(:game, Game.initial_game_state())}
   end
 
-  def handle_event("keyboard_click", %{"key" => "enter"}, %{assigns: assigns} = socket) do
-    game = Game.submit_guess(assigns.game)
-    IO.inspect(game)
+  def handle_event("keyboard_click", %{"key" => "Enter"}, %{assigns: assigns} = socket) do
+    result = Game.submit_guess(assigns.game)
 
-    socket
-    |> assign(:game, game)
-    |> noreply()
+    case result do
+      {:ok, game} ->
+        socket
+        |> assign(:game, game)
+        |> noreply()
+
+      {:error, message} ->
+        socket
+        |> assign(:error, message)
+        |> noreply()
+    end
   end
 
-  def handle_event("keyboard_click", %{"key" => "back"}, %{assigns: assigns} = socket) do
+  def handle_event("keyboard_click", %{"key" => "Backspace"}, %{assigns: assigns} = socket) do
     socket
     |> assign(:game, Game.remove_letter(assigns.game))
+    |> remove_error()
     |> noreply()
   end
 
@@ -101,13 +123,18 @@ defmodule SchmerdlePhoenixWeb.GameLive do
 
   defp get_key_class(game, key) do
     status = Game.get_letter_status(game, key)
-    base = "h-10 bg-gray-200 rounded-md m-1 flex flex-col justify-center flex-auto"
+    base = "h-10 rounded-md m-1 flex flex-col justify-center flex-auto"
 
     case status do
-      :none -> base
+      :none -> base <> " " <> "bg-gray-200"
       :correct -> base <> " " <> "bg-green-600 text-white"
       :present -> base <> " " <> "bg-yellow-500 text-white"
       :absent -> base <> " " <> "bg-gray-600 text-white"
     end
+  end
+
+  defp remove_error(socket) do
+    socket
+    |> assign(:error, nil)
   end
 end

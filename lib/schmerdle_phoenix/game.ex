@@ -1,4 +1,9 @@
 defmodule SchmerdlePhoenix.Game do
+  alias __MODULE__
+  alias SchmerdlePhoenix.Word
+
+  @type letter_status :: :correct | :present | :absent | :none
+
   @allowed_guesses 6
   @letters_per_word 5
 
@@ -10,24 +15,32 @@ defmodule SchmerdlePhoenix.Game do
     @letters_per_word
   end
 
-  def initial_game_state do
-    %{
-      board_state: [nil] |> List.duplicate(@allowed_guesses) |> List.flatten(),
-      game_status: "in_progress",
-      row_index: 1,
-      solution: "cheek",
-      current_guess: [],
-      key_statuses: %{
-        correct: MapSet.new(),
-        present: MapSet.new(),
-        absent: MapSet.new()
-      }
+  defstruct [
+    :solution,
+    board_state: [nil] |> List.duplicate(@allowed_guesses) |> List.flatten(),
+    game_status: :in_progress,
+    row_index: 1,
+    current_guess: [],
+    key_statuses: %{
+      correct: MapSet.new(),
+      present: MapSet.new(),
+      absent: MapSet.new()
     }
+  ]
+
+  @spec initial_game_state() :: %Game{}
+  def initial_game_state do
+    %Game{solution: get_random_word()}
   end
 
+  defp get_random_word do
+    Word.random(@letters_per_word).value
+  end
+
+  @spec guess_letter(%Game{}, String.t()) :: %Game{}
   def guess_letter(game, letter) do
     cond do
-      game.game_status == "win" or game.game_status == "lose" ->
+      game.game_status == :win or game.game_status == :lose ->
         game
 
       length(game.current_guess) == @letters_per_word ->
@@ -38,16 +51,28 @@ defmodule SchmerdlePhoenix.Game do
     end
   end
 
+  @spec remove_letter(%Game{}) :: %Game{}
   def remove_letter(game) do
     {_, current_guess} = List.pop_at(game.current_guess, -1)
     game |> Map.put(:current_guess, current_guess)
   end
 
+  @spec submit_guess(%Game{}) :: {:ok, %Game{}} | {:error, String.t()}
   def submit_guess(game) when length(game.current_guess) < @letters_per_word do
-    game
+    {:ok, game}
   end
 
   def submit_guess(game) do
+    word = Enum.join(game.current_guess)
+
+    if Word.exists(word) do
+      {:ok, do_submit_guess(game)}
+    else
+      {:error, "#{word} is not valid"}
+    end
+  end
+
+  defp do_submit_guess(game) do
     solution_list = String.graphemes(game.solution)
 
     evaluation =
@@ -61,6 +86,7 @@ defmodule SchmerdlePhoenix.Game do
     |> Map.put(:current_guess, [])
   end
 
+  @spec get_letter_status(%Game{}, String.t()) :: letter_status
   def get_letter_status(game, letter) do
     cond do
       MapSet.member?(game.key_statuses.correct, letter) ->
@@ -150,13 +176,13 @@ defmodule SchmerdlePhoenix.Game do
 
     cond do
       is_correct ->
-        Map.put(game, :game_status, "win")
+        Map.put(game, :game_status, :win)
 
-      !is_correct and game.row_index == @allowed_guesses - 1 ->
-        Map.put(game, :game_status, "lose")
+      !is_correct and game.row_index == @allowed_guesses ->
+        Map.put(game, :game_status, :lose)
 
       true ->
-        Map.put(game, :game_status, "in_progress")
+        Map.put(game, :game_status, :in_progress)
     end
   end
 
