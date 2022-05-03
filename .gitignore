@@ -32,3 +32,4 @@ schmerdle_phoenix-*.tar
 npm-debug.log
 /assets/node_modules/
 
+db-creds.txt
