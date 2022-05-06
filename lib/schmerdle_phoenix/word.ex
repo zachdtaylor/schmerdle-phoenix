@@ -26,7 +26,7 @@ defmodule SchmerdlePhoenix.Word do
   def random(len) do
     result =
       Repo.query!(
-        "select * from words where length(words.value) = $1 order by random() limit 1",
+        "select * from words where length(words.value) = $1 and rating >= 0 order by random() limit 1",
         [len]
       )
 

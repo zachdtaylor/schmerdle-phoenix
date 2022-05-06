@@ -44,8 +44,13 @@ defmodule SchmerdlePhoenixWeb.GameLive do
       </div>
       <% end %>
       <%= if assigns[:error] do %>
-      <div>
+      <div class="pb-4">
         <p class="text-center pb-4"><%= @error %></p>
+        <div class="text-center">
+          <button phx-click="add_word" class="px-4 py-2 rounded-md text-white bg-purple-600">
+            Add
+          </button>
+        </div>
       </div>
       <% end %>
       <div id="keyboard" class="flex justify-center">
@@ -131,6 +136,15 @@ defmodule SchmerdlePhoenixWeb.GameLive do
     socket
     |> assign(:game, Game.initial_game_state())
     |> noreply()
+  end
+
+  def handle_event("add_word", _session, %{assigns: assigns} = socket) do
+    value = Enum.join(assigns.game.current_guess)
+
+    %Word{value: value}
+    |> Repo.insert()
+
+    handle_event("keyboard_click", %{"key" => "Enter"}, remove_error(socket))
   end
 
   defp get_letter(game, row_index, letter_index) do
