@@ -8,7 +8,6 @@ defmodule SchmerdlePhoenixWeb.GameLive do
   def render(assigns) do
     ~H"""
     <div phx-window-keyup="keyboard_click" class="h-[calc(100vh-10rem)] flex flex-col justify-between">
-      <%= @game.solution %>
       <div id="guesses" class="flex justify-center">
         <div class="mb-8">
           <%= for row_index <- 1..@allowed_guesses do %>
