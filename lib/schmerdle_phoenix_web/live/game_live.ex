@@ -1,5 +1,5 @@
 defmodule SchmerdlePhoenixWeb.GameLive do
-  alias SchmerdlePhoenix.Game
+  alias SchmerdlePhoenix.{Game, Repo, Word}
 
   import SchmerdlePhoenixWeb.Helpers
 
@@ -8,6 +8,7 @@ defmodule SchmerdlePhoenixWeb.GameLive do
   def render(assigns) do
     ~H"""
     <div phx-window-keyup="keyboard_click" class="h-[calc(100vh-10rem)] flex flex-col justify-between">
+      <%= @game.solution %>
       <div id="guesses" class="flex justify-center">
         <div class="mb-8">
           <%= for row_index <- 1..@allowed_guesses do %>
@@ -28,6 +29,19 @@ defmodule SchmerdlePhoenixWeb.GameLive do
           The word was
           <span class="text-green-600"><%= @game.solution %></span>
         </p>
+      </div>
+      <% end %>
+      <%= if @game.game_status == :win or @game.game_status == :lose do %>
+      <div class="pb-4">
+        <p class="text-center">Rate the word</p>
+        <div class="text-center">
+          <button phx-click="rate_good" class="px-4 py-2 rounded-md text-white bg-green-600">
+            Good
+          </button>
+          <button phx-click="rate_bad" class="px-4 py-2 rounded-md text-white bg-red-600">
+            Bad
+          </button>
+        </div>
       </div>
       <% end %>
       <%= if assigns[:error] do %>
@@ -93,6 +107,30 @@ defmodule SchmerdlePhoenixWeb.GameLive do
   def handle_event("keyboard_click", %{"key" => key}, %{assigns: assigns} = socket) do
     socket
     |> assign(:game, Game.guess_letter(assigns.game, key))
+    |> noreply()
+  end
+
+  def handle_event("rate_good", _session, %{assigns: assigns} = socket) do
+    word = Repo.get!(Word, assigns.game.solution)
+
+    word
+    |> Word.changeset(%{rating: word.rating + 1})
+    |> Repo.update!()
+
+    socket
+    |> assign(:game, Game.initial_game_state())
+    |> noreply()
+  end
+
+  def handle_event("rate_bad", _session, %{assigns: assigns} = socket) do
+    word = Repo.get!(Word, assigns.game.solution)
+
+    word
+    |> Word.changeset(%{rating: word.rating - 1})
+    |> Repo.update!()
+
+    socket
+    |> assign(:game, Game.initial_game_state())
     |> noreply()
   end
 
