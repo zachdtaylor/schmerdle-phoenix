@@ -2,18 +2,16 @@ defmodule SchmerdlePhoenix.Game do
   alias __MODULE__
   alias SchmerdlePhoenix.Word
 
+  import Word, only: [exists: 1]
+
   @type letter_status :: :correct | :present | :absent | :none
 
   @allowed_guesses 6
   @letters_per_word 5
 
-  def allowed_guesses do
-    @allowed_guesses
-  end
+  def allowed_guesses, do: @allowed_guesses
 
-  def letters_per_word do
-    @letters_per_word
-  end
+  def letters_per_word, do: @letters_per_word
 
   defstruct [
     :solution,
@@ -28,61 +26,49 @@ defmodule SchmerdlePhoenix.Game do
     }
   ]
 
-  @spec initial_game_state() :: %Game{}
-  def initial_game_state do
-    %Game{solution: get_random_word()}
-  end
+  defguard is_over(game) when game.game_status == :win or game.game_status == :lose
+  defguard is_full(guess) when length(guess) == @letters_per_word
+  defguard is_not_full(guess) when length(guess) < @letters_per_word
 
-  defp get_random_word do
-    Word.random(@letters_per_word).value
-  end
+  def initial_game_state, do: %Game{solution: get_random_word()}
 
-  @spec guess_letter(%Game{}, String.t()) :: %Game{}
-  def guess_letter(game, letter) do
-    cond do
-      game.game_status == :win or game.game_status == :lose ->
-        game
+  def guess_letter(%Game{current_guess: current_guess} = game, _)
+      when game |> is_over()
+      when current_guess |> is_full(),
+      do: game
 
-      length(game.current_guess) == @letters_per_word ->
-        game
+  def guess_letter(%Game{current_guess: current_guess} = game, letter),
+    do: current_guess |> append(letter) |> update(game, :current_guess)
 
-      true ->
-        Map.put(game, :current_guess, game.current_guess ++ [letter])
-    end
-  end
-
-  @spec remove_letter(%Game{}) :: %Game{}
-  def remove_letter(game) do
-    {_, current_guess} = List.pop_at(game.current_guess, -1)
-    game |> Map.put(:current_guess, current_guess)
+  def remove_letter(%Game{current_guess: current_guess} = game) do
+    current_guess
+    |> remove_last_item()
+    |> update(game, :current_guess)
   end
 
   @spec submit_guess(%Game{}) :: {:ok, %Game{}} | {:error, String.t()}
-  def submit_guess(game) when length(game.current_guess) < @letters_per_word do
-    {:ok, game}
-  end
+  def submit_guess(%Game{current_guess: current_guess} = game)
+      when current_guess |> is_not_full(),
+      do: {:ok, game}
 
-  def submit_guess(game) do
-    word = Enum.join(game.current_guess)
+  def submit_guess(%Game{current_guess: current_guess} = game) do
+    word = Enum.join(current_guess)
 
-    if Word.exists(word) do
+    if word |> exists() do
       {:ok, do_submit_guess(game)}
     else
       {:error, "#{word} is not valid"}
     end
   end
 
-  defp do_submit_guess(game) do
-    solution_list = String.graphemes(game.solution)
-
-    evaluation =
-      game.current_guess
-      |> evaluate_correct(solution_list)
-      |> evaluate_present()
-
-    game
-    |> update_board_state(evaluation)
-    |> Map.put(:row_index, game.row_index + 1)
+  defp do_submit_guess(
+         %Game{solution: solution, current_guess: current_guess, row_index: row_index} = game
+       ) do
+    solution
+    |> split()
+    |> evaluate(current_guess)
+    |> update_board_state(game)
+    |> Map.put(:row_index, row_index + 1)
     |> Map.put(:current_guess, [])
   end
 
@@ -103,33 +89,25 @@ defmodule SchmerdlePhoenix.Game do
     end
   end
 
-  defp evaluate_correct(current_guess, solution_list) do
-    evaluation =
-      current_guess
-      |> Enum.with_index()
-      |> Enum.map(fn {letter, idx} ->
-        if letter == Enum.at(solution_list, idx) do
-          {:correct, letter}
-        else
-          {nil, letter}
-        end
-      end)
-
-    filtered_solution =
-      solution_list
-      |> Enum.with_index()
-      |> Enum.filter(fn {_, idx} ->
-        case Enum.at(evaluation, idx) do
-          {:correct, _} -> false
-          _ -> true
-        end
-      end)
-      |> Enum.map(fn {letter, _} -> letter end)
-
-    {evaluation, filtered_solution}
+  defp evaluate(solution_list, current_guess) do
+    solution_list
+    |> evaluate_correct_letters(current_guess)
+    |> evaluate_present_letters()
   end
 
-  defp evaluate_present({evaluation, filtered_solution}) do
+  defp evaluate_correct_letters(solution_list, current_guess) do
+    current_guess
+    |> Enum.zip(solution_list)
+    |> Enum.reduce({[], []}, fn {guess_letter, correct_letter}, {evaluation, filtered_solution} ->
+      if guess_letter == correct_letter do
+        {evaluation |> append({:correct, guess_letter}), filtered_solution}
+      else
+        {evaluation |> append({nil, guess_letter}), filtered_solution |> append(correct_letter)}
+      end
+    end)
+  end
+
+  defp evaluate_present_letters({evaluation, filtered_solution}) do
     evaluation
     |> Enum.map(fn {eval, letter} ->
       if eval != :correct do
@@ -144,7 +122,7 @@ defmodule SchmerdlePhoenix.Game do
     end)
   end
 
-  defp update_board_state(game, evaluation) do
+  defp update_board_state(evaluation, game) do
     board_state = List.replace_at(game.board_state, game.row_index - 1, evaluation)
 
     correct =
@@ -191,4 +169,12 @@ defmodule SchmerdlePhoenix.Game do
     |> Enum.filter(fn {letter_status, _} -> letter_status == status end)
     |> Enum.map(fn {_, letter} -> letter end)
   end
+
+  #### Helper functions
+
+  defp update(value, %Game{} = game, key), do: Map.put(game, key, value)
+  defp append(list, element), do: list ++ [element]
+  defp split(value), do: String.graphemes(value)
+  defp remove_last_item(list), do: List.pop_at(list, -1) |> elem(1)
+  defp get_random_word, do: Word.random(@letters_per_word).value
 end
