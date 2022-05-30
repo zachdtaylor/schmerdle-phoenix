@@ -5,6 +5,9 @@ defmodule SchmerdlePhoenixWeb.GameLive do
 
   use SchmerdlePhoenixWeb, :live_view
 
+  # Since the template has the same name as this file,
+  # we don't have to include the render() function here.
+
   def mount(_params, _session, socket) do
     keyboard_rows = [
       ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
