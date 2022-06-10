@@ -23,8 +23,10 @@ defmodule SchmerdlePhoenixWeb.GameLive do
      |> assign(:game, Game.initial_game_state())}
   end
 
-  def handle_event("keyboard_click", %{"key" => "Enter"}, %{assigns: assigns} = socket) do
-    result = Game.submit_guess(assigns.game)
+  def handle_event("enter-click", %{"word" => word}, %{assigns: assigns} = socket) do
+    result = Game.submit_guess(assigns.game, word)
+
+    IO.inspect(assigns.game)
 
     case result do
       {:ok, game} ->
@@ -37,19 +39,6 @@ defmodule SchmerdlePhoenixWeb.GameLive do
         |> assign(:error, message)
         |> noreply()
     end
-  end
-
-  def handle_event("keyboard_click", %{"key" => "Backspace"}, %{assigns: assigns} = socket) do
-    socket
-    |> assign(:game, Game.remove_letter(assigns.game))
-    |> remove_error()
-    |> noreply()
-  end
-
-  def handle_event("keyboard_click", %{"key" => key}, %{assigns: assigns} = socket) do
-    socket
-    |> assign(:game, Game.guess_letter(assigns.game, key))
-    |> noreply()
   end
 
   def handle_event("rate_good", _session, %{assigns: assigns} = socket) do
@@ -83,20 +72,6 @@ defmodule SchmerdlePhoenixWeb.GameLive do
     |> Repo.insert()
 
     handle_event("keyboard_click", %{"key" => "Enter"}, remove_error(socket))
-  end
-
-  defp get_letter(game, row_index, letter_index) do
-    cond do
-      row_index < game.row_index ->
-        word_list = Enum.at(game.board_state, row_index - 1)
-        Enum.at(word_list, letter_index - 1)
-
-      row_index == game.row_index and letter_index < length(game.current_guess) + 1 ->
-        {:none, Enum.at(game.current_guess, letter_index - 1)}
-
-      true ->
-        {:none, ""}
-    end
   end
 
   defp get_letter_class({status, _}) do

@@ -34,6 +34,15 @@ let liveSocket = new LiveSocket("/live", Socket, {
       }
     },
   },
+  hooks: {
+    SubmitGuess: {
+      mounted() {
+        this.el.addEventListener("enter-click", (event) => {
+          this.pushEvent("enter-click", event.detail);
+        });
+      },
+    },
+  },
 });
 
 // Show progress bar on live navigation and form submits

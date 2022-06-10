@@ -1,13 +1,34 @@
-<div phx-window-keyup="keyboard_click" class="h-[calc(100vh-10rem)] flex flex-col justify-between">
+<div
+  x-data="{ letters: [] }"
+  x-on:keydown.window="handleKeyPress"
+  class="h-[calc(100vh-10rem)] flex flex-col justify-between"
+>
   <div id="guesses" class="flex justify-center">
     <div class="mb-8">
-      <%= for row_index <- 1..@allowed_guesses do %>
+      <%= for row <- @game.board_state do %>
+        <%= inspect(row) %>
         <div class="flex my-2 gap-2 text-center text-xl font-bold justify-center">
-          <%= for letter_index <- 1..@letters_per_word do %>
-            <div class={get_letter_class(get_letter(@game, row_index, letter_index))}>
-              <%= elem(get_letter(@game, row_index, letter_index), 1) %>
+          <%= for letter <- row do %>
+            <%= inspect(letter) %>
+            <div class={get_letter_class(letter)}>
+              <%= elem(letter, 1) %>
             </div>
           <% end %>
+        </div>
+      <% end %>
+      <div class="flex my-2 gap-2 text-center text-xl font-bold justify-center">
+        <template x-for={"letter in #{@letters_per_word}"}>
+          <div
+            class="border-2 border-gray-200 rounded-md p-4 w-14 h-14 uppercase"
+            x-text="letters[letter - 1]"
+          />
+        </template>
+      </div>
+      <%= for _ <- 1..(@allowed_guesses - length(@game.board_state) - 1) do %>
+        <div class="flex my-2 gap-2 text-center text-xl font-bold justify-center">
+          <template x-for={"letter in #{@letters_per_word}"}>
+            <div class="border-2 border-gray-200 rounded-md p-4 w-14 h-14 uppercase" />
+          </template>
         </div>
       <% end %>
     </div>
@@ -48,16 +69,60 @@
       <%= for row <- @keyboard_rows do %>
         <div class="flex justify-center">
           <%= for key <- row do %>
-            <button
-              phx-click="keyboard_click"
-              phx-value-key={key}
-              class={get_key_class(@game, key)}
-            >
-              <span class="w-full text-center"><%= key %></span>
-            </button>
+            <%= if key == "Enter" do %>
+              <button
+                id="enter-key"
+                x-on:click="$dispatch('enter-click', { word: letters.join('') })"
+                phx-hook="SubmitGuess" 
+                class={get_key_class(@game, "Enter")}
+              >
+                <span class="w-full text-center">Enter</span>
+              </button>
+            <% else %>
+              <button x-on:click="handleButtonPress" class={get_key_class(@game, key)}>
+                <span class="w-full text-center"><%= key %></span>
+              </button>
+            <% end %>
           <% end %>
         </div>
       <% end %>
     </div>
   </div>
 </div>
+
+<script>
+  function handleEnter(letters) {
+    if (letters.length === 5) {
+      console.log('submit');
+    }
+  }
+
+  function handleBackspace(letters) {
+    letters.pop();
+  }
+
+  function handleLetter(letters, key) {
+    if (letters.length < 5 && (key.code === 'button' || (key.code >= 65 && key.code <= 90))) {
+      letters.push(key.name);
+    }
+  }
+
+  function stateReducer(letters, key) {
+    switch (key.name) {
+      case 'Backspace':
+        return handleBackspace(letters);
+      case 'Enter':
+        return handleEnter(letters);
+      default:
+        return handleLetter(letters, key)
+    }
+  }
+
+  function handleButtonPress(event) {
+    return stateReducer(this.letters, { name: event.target.textContent, code: 'button' });
+  }
+
+  function handleKeyPress(event) {
+    return stateReducer(this.letters, { name: event.key, code: event.keyCode });
+  }
+</script>
