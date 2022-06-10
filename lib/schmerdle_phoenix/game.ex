@@ -109,17 +109,20 @@ defmodule SchmerdlePhoenix.Game do
 
   defp evaluate_present_letters({evaluation, filtered_solution}) do
     evaluation
-    |> Enum.map(fn {eval, letter} ->
-      if eval != :correct do
-        if Enum.member?(filtered_solution, letter) do
-          {:present, letter}
-        else
-          {:absent, letter}
-        end
-      else
-        {eval, letter}
-      end
-    end)
+    |> Enum.reduce({[], filtered_solution}, &present_letter_reducer/2)
+    |> elem(0)
+  end
+
+  defp present_letter_reducer({eval, _} = evaluation, {evaluations, filtered_solution})
+       when eval == :correct,
+       do: {append(evaluations, evaluation), filtered_solution}
+
+  defp present_letter_reducer({_, letter}, {evaluations, filtered_solution}) do
+    if Enum.member?(filtered_solution, letter) do
+      {append(evaluations, {:present, letter}), remove(filtered_solution, letter)}
+    else
+      {append(evaluations, {:absent, letter}), remove(filtered_solution, letter)}
+    end
   end
 
   defp update_board_state(evaluation, game) do
@@ -172,6 +175,7 @@ defmodule SchmerdlePhoenix.Game do
 
   #### Helper functions
 
+  defp remove(list, element), do: List.delete(list, element)
   defp update(value, %Game{} = game, key), do: Map.put(game, key, value)
   defp append(list, element), do: list ++ [element]
   defp split(value), do: String.graphemes(value)
