@@ -20,6 +20,12 @@ defmodule SchmerdlePhoenixWeb.Router do
     live "/", GameLive
   end
 
+  scope "/live", SchmerdlePhoenixWeb do
+    pipe_through :browser
+
+    live "/schmerdle", GameLive
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", SchmerdlePhoenixWeb do
   #   pipe_through :api
